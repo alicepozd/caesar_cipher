@@ -179,4 +179,3 @@ elif (args.type[0] == "hacking"):
         caesar_hacking()
 elif (args.type[0] == "count_frequency"):
     count_frequency()
-
