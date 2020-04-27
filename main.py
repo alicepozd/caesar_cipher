@@ -1,181 +1,180 @@
+from contextlib import suppress
+from collections import defaultdict
+import string
 import argparse
 import pickle
 import sys
 
 
-def Parse():  # получение аргументов командной строки
+def parse():
+    """получение аргументов командной строки"""
     parser = argparse.ArgumentParser()
-    parser.add_argument('type', nargs=1)
-    parser.add_argument('--input_file', default="sys.stdin")
-    parser.add_argument('--output_file', default="sys.stdout")
-    parser.add_argument('--frequency_file', default="Alice_frequency")
-    parser.add_argument('--cipher')
-    parser.add_argument('--key')
+    subparsers = parser.add_subparsers(title='mode')
+
+    encode_parser = subparsers.add_parser('encode')
+    encode_parser.add_argument('--cipher', choices=['caesar', 'vigenere'])
+    encode_parser.add_argument('--input_file')
+    encode_parser.add_argument('--output_file')
+    encode_parser.add_argument('--key', default=0)
+    encode_parser.set_defaults(func=encode)
+
+    decode_parser = subparsers.add_parser('decode')
+    decode_parser.add_argument('--cipher', choices=['caesar', 'vigenere'])
+    decode_parser.add_argument('--input_file')
+    decode_parser.add_argument('--output_file')
+    decode_parser.add_argument('--key', default=0)
+    decode_parser.set_defaults(func=decode)
+
+    hacking_parser = subparsers.add_parser('hacking')
+    hacking_parser.add_argument('--cipher', choices=['caesar'])
+    hacking_parser.add_argument('--input_file')
+    hacking_parser.add_argument('--output_file')
+    hacking_parser.add_argument('--frequency_file', default="Alice_frequency.txt")
+    hacking_parser.set_defaults(func=hacking)
+
+    count_frequency_parser = subparsers.add_parser('count_frequency')
+    count_frequency_parser.add_argument('--input_file')
+    count_frequency_parser.add_argument('--output_file')
+    count_frequency_parser.set_defaults(func=count_frequency)
+
     args = parser.parse_args()
-    return args
+    args.func(args)
 
 
-def Is_small_lat(letter):
-    return (letter >= "a") and (letter <= "z")
-
-
-def Is_big_lat(letter):
-    return (letter >= "A") and (letter <= "Z")
-
-
-def s_lat_n(letter):
-    return ord(letter) - ord("a")
-
-
-def b_lat_n(letter):
-    return ord(letter) - ord("A")
-
-
-def make_s_lat(numb):
-    return chr(ord("a") + numb)
-
-
-def make_b_lat(numb):
-    return chr(ord("A") + numb)
-
-
-def count_frequency():  # для режима count_frequency (запись в файл)
-    d = counting_frequency()
+def count_frequency(args):  # для режима count_frequency (запись в файл)
+    d = counting_frequency(args.input_file)
     with open(args.output_file, 'wb') as fout:
             pickle.dump(d, fout)
 
 
-def counting_frequency():  # подсчёт частот встречаемости символов
-    d = dict()
-    Numb = 0
-    if (args.input_file != "sys.stdin"):
-        fin = open(args.input_file, 'r')
-    else:
-        fin = sys.stdin
+def counting_frequency(input_file):  # подсчёт частот встречаемости символов
+    d = defaultdict(int)
+    numb = 0
+    fin = sys.stdin
+    with suppress(TypeError):
+        fin = open(input_file, 'r')
     for line in fin:
-        for i in range(len(line)):
-            if (Is_big_lat(line[i]) or Is_small_lat(line[i])):
-                Numb += 1
-                if line[i] in d:
-                    d[line[i]] += 1
+        for letter in line:
+            if (letter.isalpha()):
+                numb += 1
+                d[letter.lower()] += 1
+    with suppress(TypeError):
+        fin.close()
+    for elem in d:
+        d[elem] /= numb
+    return d
+
+
+def caesar_encode(key, input_file, output_file):  # зашифровка шифр Цезаря
+    alfabet_size = 26
+    fin = sys.stdin
+    fout = sys.stdout
+    with suppress(TypeError):
+        fin = open(input_file, 'r')
+    with suppress(TypeError):
+        fout = open(output_file, 'w')
+    for line in fin:
+        new_line = ""
+        for letter in line:
+            if (letter.isalpha()):
+                letter_numb = string.ascii_lowercase.find(letter.lower())
+                new_letter_numb = (letter_numb + key) % alfabet_size
+                if (letter.islower()):
+                    new_line += string.ascii_lowercase[new_letter_numb]
                 else:
-                    d[line[i]] = 1
-    if (args.input_file != "sys.stdin"):
-        fin.close()
-    return [d, Numb]
-
-
-def caesar_encode(key):  # зашифровка шифр Цезаря
-    if (args.input_file != "sys.stdin"):
-        fin = open(args.input_file, 'r')
-    else:
-        fin = sys.stdin
-    if (args.output_file != "sys.stdout"):
-        fout = open(args.output_file, 'w')
-    else:
-        fout = sys.stdout
-    for line in fin:
-        for i in range(len(line)):
-            if (Is_big_lat(line[i])):
-                letter_numb = (b_lat_n(line[i]) + int(key)) % 26
-                fout.write(make_b_lat(letter_numb))
-            elif (Is_small_lat(line[i])):
-                letter_numb = (s_lat_n(line[i]) + int(key)) % 26
-                fout.write(make_s_lat(letter_numb))
+                    new_line += string.ascii_uppercase[new_letter_numb]
             else:
-                fout.write(line[i])
-    if (args.input_file != "sys.stdin"):
+                new_line += letter
+        fout.write(new_line)
+    with suppress(TypeError):
         fin.close()
-    if (args.output_file != "sys.stdout"):
+    with suppress(TypeError):
         fout.close()
 
 
-def caesar_decode(key):  # расшифровка шифр Цезаря
-    caesar_encode(str(int(key)*(-1)))
+def caesar_decode(key, input_file, output_file):  # расшифровка шифр Цезаря
+    caesar_encode(-key, input_file, output_file)
 
 
 def find_distance(d, text_freq, key=0):  # нахождение расстояния между
-    distance = 0                         # двумя частотамм со сдвигом key
-    for i in range(26):
-        d_freq = 0
-        t_freq = 0
-        letter = (i + key) % 26
-        if make_s_lat(i) in d[0]:
-            d_freq += d[0][make_s_lat(i)]
-        if make_b_lat(i) in d[0]:
-            d_freq += d[0][make_b_lat(i)]
-        if make_s_lat(letter) in text_freq[0]:
-            t_freq += text_freq[0][make_s_lat(letter)]
-        if make_b_lat(letter) in text_freq[0]:
-            t_freq += text_freq[0][make_b_lat(letter)]
-        distance += (d_freq * text_freq[1] - t_freq * d[1])**2
+    alfabet_size = 26                    # двумя частотамм со сдвигом key
+    distance = 0
+    for i, letter in enumerate(string.ascii_letters):
+        text_letter = string.ascii_letters[(i + key) % alfabet_size]
+        distance += (d[letter] - text_freq[text_letter])**2
     return distance
 
 
-def caesar_hacking():  # взлом шифр Цезаря
+def caesar_hacking(args):  # взлом шифр Цезаря
+    alfabet_size = 26
     with open(args.frequency_file, 'rb') as fin:
         d = pickle.load(fin)
-    text_freq = counting_frequency()
-    opt_distance = find_distance(d, text_freq)
-    opt_key = 0
-    for i in range(1, 26):
+    text_freq = counting_frequency(args.input_file)
+    optimal_distance = find_distance(d, text_freq)
+    optimal_key = 0
+    for i in range(1, alfabet_size):
         new_distance = find_distance(d, text_freq, i)
-        if (new_distance < opt_distance):
-            opt_distance = new_distance
-            opt_key = i
-    caesar_decode(opt_key)
+        if (new_distance < optimal_distance):
+            optimal_distance = new_distance
+            optimal_key = i
+    caesar_decode(optimal_key, args.input_file, args.output_file)
 
 
-def vigenere_encode(key):  # зашифровка шифр Вижинера
-    if (args.input_file != "sys.stdin"):
-        fin = open(args.input_file, 'r')
-    else:
-        fin = sys.stdin
-    if (args.output_file != "sys.stdout"):
-        fout = open(args.output_file, 'w')
-    else:
-        fout = sys.stdout
+def vigenere_encode(key, input_file, output_file):  # зашифровка шифр Вижинера
+    alfabet_size = 26
+    fin = sys.stdin
+    fout = sys.stdout
+    with suppress(TypeError):
+        fin = open(input_file, 'r')
+    with suppress(TypeError):
+        fout = open(output_file, 'w')
     key_index = 0
     for line in fin:
-        for i in range(len(line)):
-            if (Is_big_lat(line[i])):
-                key_index_numb = b_lat_n(key[key_index])
-                letter_numb = (b_lat_n(line[i]) + key_index_numb) % 26
-                fout.write(make_b_lat(letter_numb))
+        new_line = ""
+        for letter in line:
+            if (letter.isalpha()):
+                key_index_numb = string.ascii_uppercase.find(key[key_index])
+                letter_numb = string.ascii_lowercase.find(letter.lower())
+                new_letter_numb = (letter_numb + key_index_numb) % alfabet_size
                 key_index = (key_index + 1) % len(key)
-            elif (Is_small_lat(line[i])):
-                key_index_numb = b_lat_n(key[key_index])
-                letter_numb = (s_lat_n(line[i]) + key_index_numb) % 26
-                fout.write(make_s_lat(letter_numb))
-                key_index = (key_index + 1) % len(key)
+                if (letter.islower()):
+                    new_line += string.ascii_lowercase[new_letter_numb]
+                else:
+                    new_line += string.ascii_uppercase[new_letter_numb]
             else:
-                fout.write(line[i])
-    if (args.input_file != "sys.stdin"):
+                new_line += letter
+        fout.write(new_line)
+    with suppress(TypeError):
         fin.close()
-    if (args.output_file != "sys.stdout"):
+    with suppress(TypeError):
         fout.close()
 
 
-def vigenere_decode(key):  # расшифровка шифр Вижинера
-    new_key = ''
-    for i in range(len(key)):
-        new_key += chr(26 - ord(key[i]) + 2 * ord("A"))
-    vigenere_encode(new_key)
+def inverse(letter):
+    return string.ascii_uppercase[-string.ascii_uppercase.find(letter)]
 
 
-args = Parse()
-if (args.type[0] == "encode"):
+def vigenere_decode(key, input_file, output_file):  # расшифровка шифр Вижинера
+    inverse_key = ''.join(map(inverse, list(key)))
+    vigenere_encode(inverse_key, input_file, output_file)
+
+
+def encode(args):
     if (args.cipher == "caesar"):
-        caesar_encode(args.key)
+        caesar_encode(int(args.key), args.input_file, args.output_file)
     else:
-        vigenere_encode(args.key)
-elif (args.type[0] == "decode"):
+        vigenere_encode(args.key, args.input_file, args.output_file)
+
+
+def decode(args):
     if (args.cipher == "caesar"):
-        caesar_decode(args.key)
+        caesar_decode(int(args.key), args.input_file, args.output_file)
     else:
-        vigenere_decode(args.key)
-elif (args.type[0] == "hacking"):
-    if (args.cipher == "caesar"):
-        caesar_hacking()
-elif (args.type[0] == "count_frequency"):
-    count_frequency()
+        vigenere_decode(args.key, args.input_file, args.output_file)
+
+
+def hacking(args):
+    caesar_hacking(args)
+
+
+parse()
