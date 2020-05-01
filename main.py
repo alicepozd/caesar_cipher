@@ -55,7 +55,7 @@ def counting_frequency(input_file):  # подсчёт частот встреч�
         fin = open(input_file, 'r')
     for line in fin:
         for letter in line:
-            if (letter.isalpha()):
+            if (string.ascii_letters.find(letter) != -1):
                 numb += 1
                 d[letter.lower()] += 1
     with suppress(TypeError):
@@ -76,7 +76,7 @@ def caesar_encode(key, input_file, output_file):  # зашифровка шиф�
     for line in fin:
         new_line = ""
         for letter in line:
-            if (letter.isalpha()):
+            if (string.ascii_letters.find(letter) != -1):
                 letter_numb = string.ascii_lowercase.find(letter.lower())
                 new_letter_numb = (letter_numb + key) % alfabet_size
                 if (letter.islower()):
@@ -97,7 +97,7 @@ def caesar_decode(key, input_file, output_file):  # расшифровка ши�
 
 
 def find_distance(d, text_freq, key=0):  # нахождение расстояния между
-    alfabet_size = 26                    # двумя частотамм со сдвигом key
+    alfabet_size = 26                    # двумя частотами со сдвигом key
     distance = 0
     for i, letter in enumerate(string.ascii_letters):
         text_letter = string.ascii_letters[(i + key) % alfabet_size]
@@ -132,8 +132,8 @@ def vigenere_encode(key, input_file, output_file):  # зашифровка ши�
     for line in fin:
         new_line = ""
         for letter in line:
-            if (letter.isalpha()):
-                key_index_numb = string.ascii_uppercase.find(key[key_index])
+            if (string.ascii_letters.find(letter) != -1):
+                key_index_numb = string.ascii_lowercase.find(key[key_index].lower())
                 letter_numb = string.ascii_lowercase.find(letter.lower())
                 new_letter_numb = (letter_numb + key_index_numb) % alfabet_size
                 key_index = (key_index + 1) % len(key)
@@ -151,7 +151,7 @@ def vigenere_encode(key, input_file, output_file):  # зашифровка ши�
 
 
 def inverse(letter):
-    return string.ascii_uppercase[-string.ascii_uppercase.find(letter)]
+    return string.ascii_lowercase[25 - string.ascii_lowercase.find(letter.lower())]
 
 
 def vigenere_decode(key, input_file, output_file):  # расшифровка шифр Вижинера
