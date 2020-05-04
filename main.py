@@ -151,7 +151,9 @@ def vigenere_encode(key, input_file, output_file):  # зашифровка ши�
 
 
 def inverse(letter):
-    return string.ascii_lowercase[25 - string.ascii_lowercase.find(letter.lower())]
+    if (letter.lower() == 'a'):
+        return letter
+    return string.ascii_lowercase[26 - string.ascii_lowercase.find(letter.lower())]
 
 
 def vigenere_decode(key, input_file, output_file):  # расшифровка шифр Вижинера
