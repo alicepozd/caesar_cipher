@@ -10,70 +10,59 @@ import sys
 @contextmanager
 def file_open(name, mode):
     try:
+        if name is None:
+            if mode == 'r':
+                yield sys.stdin
+            yield sys.stdout
         open_file = open(name, mode)
         yield open_file
-    except TypeError:
-        if mode == 'r':
-            yield sys.stdin
-        else:
-            yield sys.stdout
     finally:
         if name:
             open_file.close()
 
 
 def parse_command_line_args():
-    '''возможные режимы работы:
-
-    encode аргументы:
-     --cipher выбор из caesar или vigenere
-     --key обязательный аргумент
-     --input_file если не указан, ввод через sys.stdin
-     --output_file если не указан, вывод через sys.stdout
-
-    decode аргументы:
-     --cipher выбор из caesar или vigenere
-     --key обязательный аргумент
-     --input_file если не указан, ввод через sys.stdin
-     --output_file если не указан, вывод через sys.stdout
-
-    count_frequency аргументы:
-     --input_file если не указан, ввод через sys.stdin
-     --output_file обязательный аргумент
-
-    hacking аргументы:
-     --cipher выбор из caesar или vigenere
-     --input_file если не указан, ввод через sys.stdin
-     --output_file если не указан, вывод через sys.stdout
-     --frequency_file если не указан, используется Alice_frequency.txt
-    '''
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers(title='mode')
 
     encode_parser = subparsers.add_parser('encode')
-    encode_parser.add_argument('--cipher', choices=['caesar', 'vigenere'], required=True)
-    encode_parser.add_argument('--input_file')
-    encode_parser.add_argument('--output_file')
-    encode_parser.add_argument('--key', required=True)
+    encode_parser.add_argument('--cipher', choices=['caesar', 'vigenere'], required=True,
+                               help='cipher: выбор из caesar или vigenere')
+    encode_parser.add_argument('--input_file',
+                               help='input_file: если не указан, ввод через sys.stdin')
+    encode_parser.add_argument('--output_file',
+                               help='output_file если не указан, вывод через sys.stdout')
+    encode_parser.add_argument('--key', required=True,
+                               help='key, обязательный аргумент: число для caesar, строка для vigenere')
     encode_parser.set_defaults(func=encode)
 
     decode_parser = subparsers.add_parser('decode')
-    decode_parser.add_argument('--cipher', choices=['caesar', 'vigenere'], required=True)
-    decode_parser.add_argument('--input_file')
-    decode_parser.add_argument('--output_file')
-    decode_parser.add_argument('--key', required=True)
+    decode_parser.add_argument('--cipher', choices=['caesar', 'vigenere'], required=True,
+                               help='cipher: выбор из caesar или vigenere')
+    decode_parser.add_argument('--input_file',
+                               help='input_file: если не указан, ввод через sys.stdin')
+    decode_parser.add_argument('--output_file',
+                               help='output_file: если не указан, вывод через sys.stdout')
+    decode_parser.add_argument('--key', required=True,
+                               help='key, обязательный аргумент: число для caesar, строка для vigenere')
     decode_parser.set_defaults(func=decode)
 
     hacking_parser = subparsers.add_parser('hacking')
-    hacking_parser.add_argument('--cipher', choices=['caesar'], required=True)
-    hacking_parser.add_argument('--input_file')
-    hacking_parser.add_argument('--output_file')
-    hacking_parser.add_argument('--frequency_file', default="Alice_frequency.txt")
+    hacking_parser.add_argument('--cipher', choices=['caesar'], required=True,
+                                help='cipher: выбор из caesar или vigenere')
+    hacking_parser.add_argument('--input_file',
+                                help='input_file: если не указан, ввод через sys.stdi')
+    hacking_parser.add_argument('--output_file',
+                                help='output_file: если не указан, вывод через sys.stdout')
+    hacking_parser.add_argument('--frequency_file', default="Alice_frequency.txt",
+                                help='frequency_file если не указан, используется Alice_frequency.txt')
     hacking_parser.set_defaults(func=caesar_hacking)
 
     count_frequency_parser = subparsers.add_parser('count_frequency')
-    count_frequency_parser.add_argument('--input_file')
-    count_frequency_parser.add_argument('--output_file', required=True)
+    count_frequency_parser.add_argument('--input_file',
+                                        help='input_file: если не указан, ввод через sys.stdin')
+    count_frequency_parser.add_argument('--output_file', required=True,
+                                        help='output_file: обязательный аргумент')
     count_frequency_parser.set_defaults(func=count_frequency)
 
     args = parser.parse_args()
@@ -81,64 +70,62 @@ def parse_command_line_args():
 
 
 def make_alphabet_dict():
-    dictionary = defaultdict(int)
-    for letter in string.ascii_letters:
-        dictionary[letter] = string.ascii_lowercase.find(letter.lower()) + 1
-    return dictionary
+    return {letter: ind for ind, letter in enumerate(string.ascii_letters)}
 
 
 def count_frequency(args):
     '''для режима count_frequency (запись в файл)'''
-    d = counting_frequency(args.input_file)
-    with open(args.output_file, 'wb') as fout:
-        pickle.dump(d, fout)
+    dictionary = counting_frequency(args.input_file)
+    with open(args.output_file, 'wb') as output_file:
+        pickle.dump(dictionary, output_file)
 
 
 def counting_frequency(input_file):
     '''подсчёт частот встречаемости символов'''
     alphabet_dict = make_alphabet_dict()
     dictionary = defaultdict(int)
-    with file_open(input_file, 'r') as fin:
-        for line in fin:
+    with file_open(input_file, 'r') as input_file:
+        for line in input_file:
             for letter in line:
-                if alphabet_dict[letter]:
+                if letter in alphabet_dict:
                     dictionary[letter.lower()] += 1
+    number_of_letters = sum(dictionary.values())
     for elem in dictionary:
-        dictionary[elem] /= sum(dictionary.values())
+        dictionary[elem] /= number_of_letters
     return dictionary
 
 
 def caesar_encode_function(letter, key, numb_of_letter, alphabet_dict):
-    letter_numb = alphabet_dict[letter.lower()] - 1
+    letter_numb = alphabet_dict[letter.lower()]
     new_letter_numb = (letter_numb + key) % len(string.ascii_lowercase)
     return new_letter_numb
 
 
 def vigenere_encode_function(letter, key, numb_of_letter, alphabet_dict):
-    key_index_numb = alphabet_dict[key[numb_of_letter % len(key)].lower()] - 1
-    letter_numb = alphabet_dict[letter.lower()] - 1
+    key_index_numb = alphabet_dict[key[numb_of_letter % len(key)].lower()]
+    letter_numb = alphabet_dict[letter.lower()]
     new_letter_numb = (letter_numb + key_index_numb) % len(string.ascii_lowercase)
     return new_letter_numb
 
 
 def encode_text(key, encode_function, input_file, output_file):
     alphabet_dict = make_alphabet_dict()
-    with file_open(input_file, 'r') as fin:
-        with file_open(output_file, 'w') as fout:
-            letter_numb = 0
-            for line in fin:
+    with file_open(input_file, 'r') as input_file:
+        with file_open(output_file, 'w') as output_file:
+            number_of_letters = 0
+            for line in input_file:
                 new_line = []
                 for letter in line:
-                    if alphabet_dict[letter]:
-                        new_letter_numb = encode_function(letter, key, letter_numb, alphabet_dict)
-                        letter_numb += 1
-                        if (letter.islower()):
+                    if letter in alphabet_dict:
+                        new_letter_numb = encode_function(letter, key, number_of_letters, alphabet_dict)
+                        number_of_letters += 1
+                        if letter.islower():
                             new_line.append(string.ascii_lowercase[new_letter_numb])
                         else:
                             new_line.append(string.ascii_uppercase[new_letter_numb])
                     else:
                         new_line.append(letter)
-                fout.write(''.join(new_line))
+                output_file.write(''.join(new_line))
 
 
 def caesar_decode(key, input_file, output_file):
@@ -155,8 +142,8 @@ def find_distance(dictionary, text_freq, key=0):
 
 
 def caesar_hacking(args):
-    with open(args.frequency_file, 'rb') as fin:
-        dictionary = pickle.load(fin)
+    with open(args.frequency_file, 'rb') as input_file:
+        dictionary = pickle.load(input_file)
     text_freq = counting_frequency(args.input_file)
     optimal_distance = math.inf
     for shift in range(0, len(string.ascii_lowercase)):
@@ -171,7 +158,7 @@ def inverse(letter):
     alphabet_dict = make_alphabet_dict()
     if letter.lower() == 'a':
         return letter
-    letter_numb = len(string.ascii_lowercase) - alphabet_dict[letter] + 1
+    letter_numb = len(string.ascii_lowercase) - alphabet_dict[letter]
     return string.ascii_lowercase[letter_numb]
 
 
